@@ -17,6 +17,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction as TablesExportBulkAction;
 
 class EstudianteResource extends Resource
 {
@@ -37,7 +38,7 @@ class EstudianteResource extends Resource
             TextInput::make('email')
                 ->label('Correo del estudiante')
                 ->required()
-                ->email() 
+                ->email()
                 ->unique(Estudiante::class, 'email', ignoreRecord: true), // Verificar que el email sea único
 
             TextInput::make('dni')
@@ -87,7 +88,7 @@ class EstudianteResource extends Resource
                 ]),
             ])
             ->actions([Tables\Actions\EditAction::make()])
-            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
+            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make(), TablesExportBulkAction::make()])]);
     }
 
     public static function getRelations(): array

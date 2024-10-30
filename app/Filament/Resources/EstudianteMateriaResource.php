@@ -18,11 +18,14 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rule as ValidationRule;
 use Illuminate\Validation\ValidationException as ValidationValidationException;
 use Illuminate\Validation\Validator;
-
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction as TablesExportBulkAction;
+use Illuminate\Validation\Rule;
 class EstudianteMateriaResource extends Resource
 {
     protected static ?string $model = MateriaEstudiante::class;
@@ -48,27 +51,26 @@ class EstudianteMateriaResource extends Resource
 
             // Campo de selección de materia
             Select::make('materia_id')
-                ->label('Nombre de la materia')
-                ->options(function (callable $get) {
-                    // Obtiene el id del estudiante seleccionado
-                    $estudianteId = $get('estudiante_id');
-
-                    // Si hay un estudiante seleccionado, filtra las materias por carrera
-                    if ($estudianteId) {
-                        // Obtén la carrera del estudiante
-                        $carreraId = Estudiante::find($estudianteId)?->carrera_id; // Usa null safe operator para evitar errores
-
-                        // Comprueba que la carreraId no sea nula
-                        if ($carreraId) {
-                            // Obtén las materias asociadas a esa carrera
-                            return Materia::where('carrera_id', $carreraId)->pluck('nombre', 'id'); // Ajusta según tus campos en la tabla Materia
-                        }
+            ->label('Nombre de la materia')
+            ->options(function (callable $get) {
+                $estudianteId = $get('estudiante_id');
+                if ($estudianteId) {
+                    $carreraId = Estudiante::find($estudianteId)?->carrera_id;
+                    if ($carreraId) {
+                        return Materia::where('carrera_id', $carreraId)->pluck('nombre', 'id');
                     }
+                }
+                return [];
+            })
+            ->rule(function (callable $get) {
+                $estudianteId = $get('estudiante_id');
+                $recordId = $get('id');  // Obtenemos el ID del registro en edición, si existe
+                return Rule::unique('materia_estudiantes', 'materia_id')
+                    ->where('estudiante_id', $estudianteId)
+                    ->ignore($recordId);  // Ignoramos el registro actual para evitar conflictos en edición
+            }) 
+            ->required(), 
 
-                    return [];
-                })
-                ->unique(MateriaEstudiante::class, 'materia_id', ignoreRecord: true)
-                ->required(), // Verifica que la materia sea única para el estudiante
 
             Select::make('estado_de_materia')
                 ->label('Estado de la materia')
@@ -98,7 +100,9 @@ class EstudianteMateriaResource extends Resource
                 ]),
             ])
             ->actions([Tables\Actions\EditAction::make()])
-            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
+            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make(),
+            TablesExportBulkAction::make(),
+            ])]);
     }
 
     public static function getRelations(): array
