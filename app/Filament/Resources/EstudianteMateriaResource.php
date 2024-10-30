@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use Illuminate\Database\QueryException;
+use Filament\Notifications\Notification;
 use App\Filament\Resources\EstudianteMateriaResource\Pages;
 use App\Filament\Resources\EstudianteMateriaResource\RelationManagers;
 use App\Models\Estudiante;
@@ -36,54 +38,54 @@ class EstudianteMateriaResource extends Resource
 
     public static function form(Form $form): Form
     {
-        return $form->schema([
-            // Campo de selección de estudiante
-            Select::make('estudiante_id')
-                ->label('DNI del estudiante')
-                ->options(Estudiante::all()->pluck('dni', 'id')->toArray()) // Obtiene los DNI como opciones
-                ->searchable() // Permite búsqueda en el select
-                ->reactive() // Hace que el campo sea reactivo
-                ->afterStateUpdated(function (callable $set, $state) {
-                    // Cuando el estudiante cambia, establece el valor de materia_id a null
-                    $set('materia_id', null);
-                })
-                ->required(),
+        return $form
+            ->schema([
+                // Campo de selección de estudiante
+                Select::make('estudiante_id')
+                    ->label('DNI del estudiante')
+                    ->options(Estudiante::all()->pluck('dni', 'id')->toArray()) // Obtiene los DNI como opciones
+                    ->searchable() // Permite búsqueda en el select
+                    ->reactive() // Hace que el campo sea reactivo
+                    ->afterStateUpdated(function (callable $set, $state) {
+                        // Cuando el estudiante cambia, establece el valor de materia_id a null
+                        $set('materia_id', null);
+                    })
+                    ->required(),
 
-            // Campo de selección de materia
-            Select::make('materia_id')
-            ->label('Nombre de la materia')
-            ->options(function (callable $get) {
-                $estudianteId = $get('estudiante_id');
-                if ($estudianteId) {
-                    $carreraId = Estudiante::find($estudianteId)?->carrera_id;
-                    if ($carreraId) {
-                        return Materia::where('carrera_id', $carreraId)->pluck('nombre', 'id');
-                    }
-                }
-                return [];
-            })
-            ->rule(function (callable $get) {
-                $estudianteId = $get('estudiante_id');
-                $recordId = $get('id');  // Obtenemos el ID del registro en edición, si existe
-                return Rule::unique('materia_estudiantes', 'materia_id')
-                    ->where('estudiante_id', $estudianteId)
-                    ->ignore($recordId);  // Ignoramos el registro actual para evitar conflictos en edición
-            }) 
-            ->required(), 
+                // Campo de selección de materia
+                Select::make('materia_id')
+                    ->label('Nombre de la materia')
+                    ->options(function (callable $get) {
+                        $estudianteId = $get('estudiante_id');
+                        if ($estudianteId) {
+                            $carreraId = Estudiante::find($estudianteId)?->carrera_id;
+                            if ($carreraId) {
+                                return Materia::where('carrera_id', $carreraId)->pluck('nombre', 'id');
+                            }
+                        }
+                        return [];
+                    })
+                    ->rule(function (callable $get) {
+                        $estudianteId = $get('estudiante_id');
+                        $recordId = $get('id');  // Obtenemos el ID del registro en edición, si existe
+                        return Rule::unique('materia_estudiantes', 'materia_id')
+                            ->where('estudiante_id', $estudianteId)
+                            ->ignore($recordId);  // Ignoramos el registro actual para evitar conflictos en edición
+                    }) 
+                    ->required(),
 
+                Select::make('estado_de_materia')
+                    ->label('Estado de la materia')
+                    ->options([
+                        'aprobado' => 'Aprobado',
+                        'desaprobado' => 'Desaprobado',
+                        'regular' => 'Regular',
+                        'libre' => 'libre',
+                    ])
+                    ->required(),
 
-            Select::make('estado_de_materia')
-                ->label('Estado de la materia')
-                ->options([
-                    'aprobado' => 'Aprobado',
-                    'desaprobado' => 'Desaprobado',
-                    'regular' => 'Regular',
-                    'libre' => 'libre',
-                ])
-                ->required(),
-
-            DateTimePicker::make('fecha')->required(),
-        ]);
+                DateTimePicker::make('fecha')->required(),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -100,9 +102,7 @@ class EstudianteMateriaResource extends Resource
                 ]),
             ])
             ->actions([Tables\Actions\EditAction::make()])
-            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make(),
-            TablesExportBulkAction::make(),
-            ])]);
+            ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make(), TablesExportBulkAction::make()])]);
     }
 
     public static function getRelations(): array

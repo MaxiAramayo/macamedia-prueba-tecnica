@@ -44,7 +44,7 @@ class EstudianteResource extends Resource
             TextInput::make('dni')
                 ->label('DNI del estudiante')
                 ->required()
-                ->unique(Estudiante::class, 'dni'), // Verificar que el DNI sea único
+                ->unique(Estudiante::class, 'dni', ignoreRecord: true), // Verificar que el DNI sea único
 
             TextInput::make('telefono')->label('Telefono del estudiante'),
 
